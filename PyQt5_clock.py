@@ -36,6 +36,7 @@ class DigitalClock(QWidget):
         self.set_alarm_button.setObjectName("set_alarm_button")
         self.alarms_button.clicked.connect(self.open_alarms)
         self.set_alarm_button.clicked.connect(self.set_alarm_buttonfunc)
+        self.stop_alarm_button.setObjectName("stop_alarm_button")
 
         self.opened = False
         self.layouts()
@@ -80,7 +81,15 @@ class DigitalClock(QWidget):
                                 background-color: #adadac;
                                 border-radius: 7px;
                             }
-                            
+                            QPushButton#stop_alarm_button{
+                                border: 3px solid;
+                                border-radius: 7px;
+                                font-size: 20px;
+                                font-weight: bold;
+                                padding: 3px 5px;
+                                background-color: #adadac;
+                            } 
+                           
                             QLineEdit{
                                 border: 3px solid;
                                 font-size: 30px;
