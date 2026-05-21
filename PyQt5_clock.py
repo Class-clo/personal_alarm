@@ -16,6 +16,8 @@ class DigitalClock(QWidget):
         self.alarms_label.hide()
         self.alarms_button = QPushButton("Alarms", self)
         self.alarm_istriggered = None
+        self.stop_alarm_button = QPushButton("Stop alarm", self)
+        self.stop_alarm_button.hide()
 
         self.set_alarm_lineedit = QLineEdit(self)
         self.set_alarm_lineedit.hide()
@@ -49,6 +51,7 @@ class DigitalClock(QWidget):
         vbox.addLayout(hbox)
         vbox.addWidget(self.alarms_button)
         vbox.addWidget(self.time_label)
+        vbox.addWidget(self.stop_alarm_button)
         self.setLayout(vbox)
 
     def styles(self):
@@ -139,15 +142,22 @@ class DigitalClock(QWidget):
             thread1 = threading.Thread(target=self.play_alarm_sound, daemon=True)
             thread1.start()
             self.alarm_istriggered = time_now
+            self.stop_alarm_button.show()
+            self.stop_alarm_button.clicked.connect(self.stop_alarm)
         elif time_now not in self.alarms:
             self.alarm_istriggered = None  # Reset the alarm trigger if the current time is not in the alarms list       
-    
+            self.stop_alarm_button.hide()
+
     def play_alarm_sound(self):
         pygame.mixer.init()
         pygame.mixer.music.load("games/gud/The Fog - Trey Xavier, Rod Kim.mp3")
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
             time.sleep(0.1)
+
+    def stop_alarm(self):
+        pygame.mixer.music.stop()
+        self.stop_alarm_button.hide()
 
     def update_time(self):
         current_time = QTime.currentTime().toString("hh:mm:ss AP")
