@@ -7,6 +7,8 @@ from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout, QPushBut
 from PyQt5.QtCore import QTimer, QTime, Qt
 from PyQt5.QtGui import QFont, QFontDatabase
 #------------------------Imports------------------------
+# test message: Switching from VSCode to Cursor
+print(|"hello world")
 
 class DigitalClock(QWidget):
     def __init__(self):
