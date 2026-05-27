@@ -3,28 +3,111 @@ import os
 import time
 import pygame
 import threading
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout, QPushButton, QRadioButton, QLineEdit, QHBoxLayout
-from PyQt5.QtCore import QTimer, QTime, Qt
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout, QPushButton, QRadioButton, QLineEdit, QHBoxLayout, QGridLayout
+from PyQt5.QtCore import QTimer, QTime, Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QFontDatabase
 import databases_module_for_alarms
 #------------------------Imports------------------------
 
-class NonModalWindow(QWidget):
+class AlarmRow(QWidget):
 
-    def __init__(self):
+    def __init__(self, text, db, parent_window):
         super().__init__()
-        self.setWindowTitle("Non-Modal Window")
-        self.resize(300, 150)
 
-        layout = QVBoxLayout()
-        self.db = databases_module_for_alarms.Database("test_alarm_db1")
-        for value in self.db.read_all():
-            layout.addWidget(QLabel(value, self))
-        # label = QLabel(
-        #     "This is a NON-MODAL window.\nYou can still click the main window!",
-        #     self,
-        # 
+        self.db = db
+        self.text = text
+        self.parent_window = parent_window
+        self.label = QLabel(self.text)
+        self.button = QPushButton("Delete")
+        
+        self.label.setMinimumSize(100, 20)
+        self.label.setMaximumSize(2000, 60)
+        self.button.setMinimumSize(50, 20)
+        self.button.setMaximumSize(100, 60)
+
+        self.label.setStyleSheet("font-size: 10px; font-weight: bold; background-color: #f0eded; border: 2px solid; border-radius: 5px;")
+        self.button.setStyleSheet("font-size: 10px; font-weight: bold; background-color: #f0eded; border: 2px solid; border-radius: 5px;")
+
+        layout = QHBoxLayout()
+
+        layout.addWidget(self.label)
+        layout.addWidget(self.button)
+
         self.setLayout(layout)
+        self.button.clicked.connect(self.delete_self)
+
+
+    def enterEvent(self, event):
+        
+        super().enterEvent(event)
+        self.label.setStyleSheet("""
+            background-color: #969292;
+            color: white;
+            font-size: 10px; 
+            font-weight: bold;
+            border: 2px solid;
+            border-radius: 5px;
+        """)
+        self.button.setStyleSheet("""
+            background-color: #ff4040;  
+            color: white;
+            font-size: 10px; 
+            font-weight: bold;
+            border: 2px solid;
+            border-radius: 5px;
+        """)
+
+
+    def leaveEvent(self, event):
+        super().leaveEvent(event)
+
+        self.label.setStyleSheet("font-size: 10px; font-weight: bold; background-color: #f0eded; border: 2px solid; border-radius: 5px;")
+        self.button.setStyleSheet("font-size: 10px; font-weight: bold; background-color: #f0eded; border: 2px solid; border-radius: 5px;")
+
+
+    def delete_self(self):
+        self.db.delete_value(self.text)
+        # self.deleteLater()
+        self.parent_window.refresh()
+        self.parent_window.adjustSize()
+
+
+
+
+class AlarmsWindow(QWidget):
+
+    def __init__(self, db):
+        super().__init__()
+        self.setWindowTitle("List of Alarms")
+        self.resize(200, 50)
+        self.db = db
+        self.initUI()
+    
+
+    def initUI(self):
+        # print(self.db.count_values())  testing
+        self.grid = QGridLayout()
+        self.setLayout(self.grid)
+
+        for y, x in enumerate(self.db.read_all()):
+            alarm_row = AlarmRow(x, self.db, self)
+            # alarm_row.mouse_entered.connect(self.on_hover_enter)
+            # alarm_row.mouse_left.connect(self.on_hover_leave)
+
+            self.grid.addWidget(alarm_row, y, 0)
+
+
+    def refresh(self):
+
+        while self.grid.count():
+            item = self.grid.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        for y, x in enumerate(self.db.read_all()):
+            alarm_row = AlarmRow(x, self.db, self)
+            self.grid.addWidget(alarm_row, y, 0)
 
 
 
@@ -43,9 +126,9 @@ class DigitalClock(QWidget):
         self.am_radio_button.hide()
         self.pm_radio_button.hide()
         self.stop_alarm_button.hide()
-        self.non_modal_window_button = QPushButton("Open Non-Modal Window", self)
-        self.non_modal_window = None
-        self.non_modal_window_button.hide()
+        self.alarms_window_button = QPushButton("Show Alarms", self)
+        self.alarms_window = None
+        self.alarms_window_button.hide()
         self.set_alarm_lineedit = QLineEdit(self)
         self.set_alarm_lineedit.hide()
         self.set_alarm_button = QPushButton("Set alarm")
@@ -60,6 +143,7 @@ class DigitalClock(QWidget):
 
         self.initUI()
 
+
     def initUI(self):
         self.setWindowTitle("Digital Clock")
         self.setGeometry(700, 400, 300, 100)
@@ -72,31 +156,34 @@ class DigitalClock(QWidget):
         self.stop_alarm_button.setObjectName("stop_alarm_button")
         self.am_radio_button.setObjectName("am_radio_button")
         self.pm_radio_button.setObjectName("pm_radio_button")
-        self.non_modal_window_button.setObjectName("non_modal_window_button")
-        self.non_modal_window_button.clicked.connect(self.open_non_modal_window)
+        self.alarms_window_button.setObjectName("Show_Alarms_button")
+        self.alarms_window_button.clicked.connect(self.open_alarms_window)
         self.opened = False
         self.layouts()
         self.styles()
         self.clock_functionality()
 
+
     def layouts(self):
         vbox = QVBoxLayout(self)
         hbox = QHBoxLayout()
-        vbox.addWidget(self.alarms_label)
+        # vbox.addWidget(self.alarms_label) for testing
         hbox.addWidget(self.set_alarm_lineedit)
         hbox.addWidget(self.am_radio_button)
         hbox.addWidget(self.pm_radio_button)
         hbox.addWidget(self.set_alarm_button)
         vbox.addLayout(hbox)
-        vbox.addWidget(self.non_modal_window_button)
+        vbox.addWidget(self.alarms_window_button)
         vbox.addWidget(self.alarms_button)
         vbox.addWidget(self.time_label)
         vbox.addWidget(self.stop_alarm_button)
-        vbox.addWidget(self.non_modal_window_button)
+        # vbox.addWidget(self.alarms_window_button)
         self.setLayout(vbox)
+
 
     def styles(self):
         self.time_label.setAlignment(Qt.AlignCenter)
+
         self.setStyleSheet("""
                             QLabel#time_label{
                                 font-size: 150px;
@@ -128,7 +215,15 @@ class DigitalClock(QWidget):
                                 font-weight: bold;
                                 padding: 3px 5px;
                                 background-color: #adadac;
-                            } 
+                            }
+                            QPushButton#Show_Alarms_button{
+                                border: 3px solid;
+                                background-color: #adadac;
+                                font-size: 20px;
+                                font-weight: bold;
+                                padding: 2px 1px;
+                                border-radius: 7px;
+                            }
                         
                             QLineEdit{
                                 border: 3px solid;
@@ -162,30 +257,36 @@ class DigitalClock(QWidget):
         self.my_font = QFont(self.font_family, 150)
         self.time_label.setFont(self.my_font)
 
+
     def clock_functionality(self):
         self.timer.timeout.connect(self.update_time)
         self.timer.start(1000)
         self.update_time()
 
-    def open_non_modal_window(self):
-        if self.non_modal_window is None:
-            self.non_modal_window = NonModalWindow()
-        self.non_modal_window.show()
-        self.non_modal_window.raise_()
-        self.non_modal_window.activateWindow()
+
+    def open_alarms_window(self):
+        if self.alarms_window is None:
+            self.alarms_window = AlarmsWindow(self.db)
+        self.alarms_window.show()
+        self.alarms_window.raise_()
+        self.alarms_window.activateWindow()
+
 
     def open_alarms(self):
         if self.opened == False and self.alarms_button.clicked:
-            # self.alarms_label.show()
-            self.non_modal_window_button.show()
+
+            # self.alarms_label.show()      # for testing
+            self.alarms_window_button.show()
             self.set_alarm_button.show()
             self.set_alarm_lineedit.show()
             self.am_radio_button.show()
             self.pm_radio_button.show()
             self.alarms_button.setText("Hide alarms")
             self.opened = True
+
         elif self.opened == True and self.alarms_button.clicked:
-            self.non_modal_window_button.hide()
+
+            self.alarms_window_button.hide()
             self.alarms_label.hide()
             self.set_alarm_button.hide()
             self.set_alarm_lineedit.hide()
@@ -194,7 +295,9 @@ class DigitalClock(QWidget):
             self.alarms_button.setText("Alarms")
             self.opened = False
 
+
     def set_alarm_buttonfunc(self):
+        self.refresh()
         alarm_text = self.set_alarm_lineedit.text().strip()
         # if not alarm_text:     #does not work if the user only enters spaces, so we strip the text first and then check if it's empty
         #     self.set_alarm_lineedit.setPlaceholderText("Enter a time like 07:30")
@@ -212,16 +315,18 @@ class DigitalClock(QWidget):
 
         if time_obj.isValid():
             self.alarm_time = time_obj.toString("hh:mm AP")
+
             if self.alarm_time not in self.alarms:
 
                 # with databases_module_main.Database("school3") as db:
 
                 self.alarms.append(self.alarm_time)
                 self.db.add_value(self.alarm_time)
-                self.non_modal_window = NonModalWindow()
-                self.non_modal_window.show()
-                self.non_modal_window.raise_()
-                self.non_modal_window.activateWindow()
+                if self.alarms_window is not None:
+                    self.alarms_window.refresh()
+                # self.alarms_window.show()
+                # self.alarms_window.raise_()
+                # self.alarms_window.activateWindow()
                 self.alarms_label.setText("\n".join(self.alarms))
                 self.set_alarm_lineedit.clear()
                     
@@ -235,14 +340,18 @@ class DigitalClock(QWidget):
     def alarm_functionality(self):
         time_now = QTime.currentTime().toString("hh:mm AP")
         if time_now in self.alarms and time_now != self.alarm_istriggered:
+
             thread1 = threading.Thread(target=self.play_alarm_sound, daemon=True)
             thread1.start()
             self.alarm_istriggered = time_now
             self.stop_alarm_button.show()
             self.stop_alarm_button.clicked.connect(self.stop_alarm)
+
         elif time_now not in self.alarms:
+
             self.alarm_istriggered = None  # Reset the alarm trigger if the current time is not in the alarms list       
             self.stop_alarm_button.hide()
+
 
     def play_alarm_sound(self):
         pygame.mixer.init()
@@ -251,16 +360,26 @@ class DigitalClock(QWidget):
         while pygame.mixer.music.get_busy():
             time.sleep(0.1)
 
+
     def stop_alarm(self):
         pygame.mixer.music.stop()
         self.stop_alarm_button.hide()
+
 
     def update_time(self):
         current_time = QTime.currentTime().toString("hh:mm:ss AP")
         self.time_label.setText(current_time)
         self.alarm_functionality()
 
+    
+    def refresh(self):
+        self.alarms = []
+        for alarm in self.db.read_all():
+            self.alarms.append(alarm)
 
+
+
+clock = None
 
 if __name__ == '__main__':
     try:
@@ -271,4 +390,5 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Sorry, something went wrong. \n Error: \n \n {e}")
     finally:
-        databases_module_for_alarms.Database("personal_alarms_db").close_db()
+        if clock is not None:
+            clock.db.close_db()

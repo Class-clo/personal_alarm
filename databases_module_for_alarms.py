@@ -63,6 +63,13 @@ class Database:
     def delete_all(self):
         self.cursor.execute(f"DELETE FROM {self.database_name}")
         self.conn.commit()
+    
+    def count_values(self):
+        self.cursor.execute(
+            f"SELECT COUNT(*) FROM {self.database_name}"
+        )
+
+        return self.cursor.fetchone()[0]
 
     def close_db(self):
         self.conn.close() #              remember to add to the last when closing manually
